@@ -217,7 +217,7 @@ public class GatorHuntGame extends ApplicationAdapter {
         drawDecorativeAlligator(0.40f, 0.80f);
 
         drawCentered(titleFont, "GATOR HUNT", screenHeight * 0.30f);
-        drawCentered(hudFont, "Tap, or press SPACE/ENTER, to start", screenHeight * 0.48f);
+        drawCentered(hudFont, "Tap to start", screenHeight * 0.48f);
     }
 
     private void drawDecorativeAlligator(float xFraction, float yFraction) {
@@ -237,7 +237,7 @@ public class GatorHuntGame extends ApplicationAdapter {
 
         if (state == State.GAME_OVER) {
             drawCentered(titleFont, "GAME OVER", screenHeight * 0.25f);
-            drawCentered(hudFont, "Tap, or press SPACE/ENTER, to try again.", screenHeight * 0.40f);
+            drawCentered(hudFont, "Tap to try again.", screenHeight * 0.40f);
         }
     }
 
