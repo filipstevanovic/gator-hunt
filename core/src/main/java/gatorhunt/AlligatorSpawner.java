@@ -52,6 +52,9 @@ public class AlligatorSpawner {
     /** Each row's actual interval is jittered by up to this fraction of its base value, so spawns don't land in a perfectly mechanical rhythm. */
     private static final double JITTER_FRACTION = 0.2;
 
+    /** Extra spawn density added per difficulty level, layered on top of the per-row base interval below (see DifficultyRamp). */
+    private static final double DENSITY_INCREASE_PER_LEVEL = 0.1;
+
     /** One row per entry: {startX, y, speed, points}. Speed is negative — alligators move leftward. */
     private final int[][] spawnRows;
     private final long[] baseIntervalNs;
@@ -77,7 +80,7 @@ public class AlligatorSpawner {
             int speed = Math.abs(spawnRows[i][2]);
             double speedRatio = (double) FASTEST_ROW_SPEED / speed;
             baseIntervalNs[i] = (long) (FASTEST_ROW_INTERVAL_NS * Math.pow(speedRatio, DENSITY_BIAS_EXPONENT));
-            nextIntervalNs[i] = jittered(baseIntervalNs[i], random);
+            nextIntervalNs[i] = jittered(baseIntervalNs[i], 0, random);
             // starts each row's clock at construction time, rather than
             // System.nanoTime()'s arbitrary large epoch, so rows don't all
             // spawn simultaneously on the very first check
@@ -86,7 +89,7 @@ public class AlligatorSpawner {
     }
 
     /** Spawns into every row whose own interval has elapsed since its last spawn — usually none, sometimes one. */
-    public List<Alligator> spawnDue(long now, Random random, Texture image, int width, int height) {
+    public List<Alligator> spawnDue(long now, int level, Random random, Texture image, int width, int height) {
         List<Alligator> spawned = new ArrayList<>(1);
 
         for (int i = 0; i < spawnRows.length; i++) {
@@ -95,16 +98,20 @@ public class AlligatorSpawner {
                 int startX = row[0] + random.nextInt(200);
                 spawned.add(new Alligator(startX, row[1], row[2], row[3], width, height, image));
                 lastSpawnTime[i] = now;
-                nextIntervalNs[i] = jittered(baseIntervalNs[i], random);
+                nextIntervalNs[i] = jittered(baseIntervalNs[i], level, random);
             }
         }
 
         return spawned;
     }
 
-    /** Randomizes an interval by up to +/- JITTER_FRACTION, keeping the long-run average equal to base. */
-    private long jittered(long base, Random random) {
-        double factor = 1.0 + (random.nextDouble() * 2 - 1) * JITTER_FRACTION;
-        return (long) (base * factor);
+    /**
+     * Randomizes an interval by up to +/- JITTER_FRACTION, keeping the long-run average equal to base,
+     * then shrinks it by DENSITY_INCREASE_PER_LEVEL per difficulty level so higher levels spawn more often.
+     */
+    private long jittered(long base, int level, Random random) {
+        double jitterFactor = 1.0 + (random.nextDouble() * 2 - 1) * JITTER_FRACTION;
+        double densityMultiplier = 1.0 + DENSITY_INCREASE_PER_LEVEL * level;
+        return (long) (base * jitterFactor / densityMultiplier);
     }
 }

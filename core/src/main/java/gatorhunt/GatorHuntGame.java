@@ -182,11 +182,12 @@ public class GatorHuntGame extends ApplicationAdapter {
         long now = System.nanoTime();
         elapsedNs = now - gameStartTime;
 
+        int level = difficultyRamp.level(now);
         stats.getAlligators().addAll(
-                spawner.spawnDue(now, stats.getRandom(), alligatorImage, alligatorWidth, alligatorHeight));
+                spawner.spawnDue(now, level, stats.getRandom(), alligatorImage, alligatorWidth, alligatorHeight));
 
         moveAlligatorsAndRemoveEscaped(difficultyRamp.speedMultiplier(now));
-        levelUpBanner.update(difficultyRamp.level(now), now);
+        levelUpBanner.update(level, now);
 
         if (stats.getEscapedCount() >= MAX_ESCAPED_ALLIGATORS) {
             state = State.GAME_OVER;
