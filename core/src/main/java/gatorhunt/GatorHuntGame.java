@@ -61,6 +61,8 @@ public class GatorHuntGame extends ApplicationAdapter {
     private AlligatorSpawner spawner;
     private State state;
     private DifficultyRamp difficultyRamp;
+    private long gameStartTime;
+    private long elapsedNs;
 
     @Override
     public void create() {
@@ -130,6 +132,8 @@ public class GatorHuntGame extends ApplicationAdapter {
         long now = System.nanoTime();
         spawner = new AlligatorSpawner(screenWidth, screenHeight, now, stats.getRandom());
         difficultyRamp = new DifficultyRamp(now);
+        gameStartTime = now;
+        elapsedNs = 0;
         state = State.PLAYING;
     }
 
@@ -154,6 +158,7 @@ public class GatorHuntGame extends ApplicationAdapter {
 
     private void update() {
         long now = System.nanoTime();
+        elapsedNs = now - gameStartTime;
 
         stats.getAlligators().addAll(
                 spawner.spawnDue(now, stats.getRandom(), alligatorImage, alligatorWidth, alligatorHeight));
@@ -237,6 +242,7 @@ public class GatorHuntGame extends ApplicationAdapter {
         batch.draw(grassImage, 0, 0, screenWidth, grassImage.getHeight());
 
         drawHud();
+        drawElapsedTime();
 
         if (state == State.GAME_OVER) {
             drawCentered(titleFont, "GAME OVER", screenHeight * 0.25f);
@@ -259,6 +265,20 @@ public class GatorHuntGame extends ApplicationAdapter {
         hudFont.draw(batch, text, x, y);
         layout.setText(hudFont, text);
         return x + layout.width + HUD_STAT_GAP;
+    }
+
+    /** Freezes at the final time once the game ends, since update() (which advances elapsedNs) stops running. */
+    private void drawElapsedTime() {
+        String text = formatElapsedTime(elapsedNs);
+        layout.setText(hudFont, text);
+        hudFont.draw(batch, text, screenWidth - HUD_MARGIN - layout.width, textTopY(HUD_MARGIN));
+    }
+
+    static String formatElapsedTime(long elapsedNs) {
+        long totalSeconds = elapsedNs / GameStats.NANOSECONDS_PER_SECOND;
+        long minutes = totalSeconds / 60;
+        long seconds = totalSeconds % 60;
+        return String.format("%02d:%02d", minutes, seconds);
     }
 
     private void drawCentered(BitmapFont font, String text, float distanceFromTop) {
