@@ -2,25 +2,36 @@ package gatorhunt;
 
 import com.badlogic.gdx.graphics.Texture;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 /**
- * Spawns alligators into one of four rows, spaced out in time so rows
- * don't overlap. Kept as per-session instance state (rather than the
- * static globals the original AWT version used) so a restarted game
- * starts clean.
+ * Spawns alligators into four rows that move at different speeds.
+ *
+ * Each row gets its own spawn interval, inversely proportional to its
+ * speed, so every row ends up with roughly the same number of
+ * alligators visible at once. A single shared interval (as the original
+ * AWT version used) makes the slow rows pile up: a fast row clears
+ * itself almost as quickly as new alligators arrive, but a slow one
+ * doesn't, so it keeps accumulating.
+ *
+ * Kept as per-session instance state (rather than the static globals
+ * the original AWT version used) so a restarted game starts clean.
  */
 public class AlligatorSpawner {
 
-    private static final long SPAWN_INTERVAL_NS = GameStats.NANOSECONDS_PER_SECOND / 2;
+    // the fastest row keeps the original spawn pacing; every other row's
+    // interval is scaled up by how much slower it is than the fastest one
+    private static final long FASTEST_ROW_INTERVAL_NS = GameStats.NANOSECONDS_PER_SECOND / 2;
+    private static final int FASTEST_ROW_SPEED = 5;
 
     /** One row per entry: {startX, y, speed, points}. Speed is negative — alligators move leftward. */
     private final int[][] spawnRows;
+    private final long[] spawnIntervalNs;
+    private final long[] lastSpawnTime;
 
-    private long lastSpawnTime = 0;
-    private int nextRow = 0;
-
-    public AlligatorSpawner(int screenWidth, int screenHeight) {
+    public AlligatorSpawner(int screenWidth, int screenHeight, long now) {
         // spaced further apart than a plain 1/N split of the screen, since
         // drawn alligators are scaled up noticeably from their sprite's
         // native size (see GatorHuntGame.ALLIGATOR_SCALE)
@@ -30,20 +41,32 @@ public class AlligatorSpawner {
             { screenWidth, (int) (screenHeight * 0.73), -4, 40 },
             { screenWidth, (int) (screenHeight * 0.82), -5, 50 },
         };
+
+        spawnIntervalNs = new long[spawnRows.length];
+        lastSpawnTime = new long[spawnRows.length];
+        for (int i = 0; i < spawnRows.length; i++) {
+            int speed = Math.abs(spawnRows[i][2]);
+            spawnIntervalNs[i] = FASTEST_ROW_INTERVAL_NS * FASTEST_ROW_SPEED / speed;
+            // starts each row's clock at construction time, rather than
+            // System.nanoTime()'s arbitrary large epoch, so rows don't all
+            // spawn simultaneously on the very first check
+            lastSpawnTime[i] = now;
+        }
     }
 
-    public boolean isDue(long now) {
-        return now - lastSpawnTime >= SPAWN_INTERVAL_NS;
-    }
+    /** Spawns into every row whose own interval has elapsed since its last spawn — usually none, sometimes one. */
+    public List<Alligator> spawnDue(long now, Random random, Texture image, int width, int height) {
+        List<Alligator> spawned = new ArrayList<>(1);
 
-    public Alligator spawn(long now, Random random, Texture image, int width, int height) {
-        int[] row = spawnRows[nextRow];
-        int startX = row[0] + random.nextInt(200);
+        for (int i = 0; i < spawnRows.length; i++) {
+            if (now - lastSpawnTime[i] >= spawnIntervalNs[i]) {
+                int[] row = spawnRows[i];
+                int startX = row[0] + random.nextInt(200);
+                spawned.add(new Alligator(startX, row[1], row[2], row[3], width, height, image));
+                lastSpawnTime[i] = now;
+            }
+        }
 
-        Alligator alligator = new Alligator(startX, row[1], row[2], row[3], width, height, image);
-
-        nextRow = (nextRow + 1) % spawnRows.length;
-        lastSpawnTime = now;
-        return alligator;
+        return spawned;
     }
 }

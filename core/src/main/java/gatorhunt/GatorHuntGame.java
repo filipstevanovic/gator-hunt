@@ -126,7 +126,7 @@ public class GatorHuntGame extends ApplicationAdapter {
 
     private void startNewGame() {
         stats = new GameStats();
-        spawner = new AlligatorSpawner(screenWidth, screenHeight);
+        spawner = new AlligatorSpawner(screenWidth, screenHeight, System.nanoTime());
         state = State.PLAYING;
     }
 
@@ -152,10 +152,8 @@ public class GatorHuntGame extends ApplicationAdapter {
     private void update() {
         long now = System.nanoTime();
 
-        if (spawner.isDue(now)) {
-            Alligator alligator = spawner.spawn(now, stats.getRandom(), alligatorImage, alligatorWidth, alligatorHeight);
-            stats.getAlligators().add(alligator);
-        }
+        stats.getAlligators().addAll(
+                spawner.spawnDue(now, stats.getRandom(), alligatorImage, alligatorWidth, alligatorHeight));
 
         moveAlligatorsAndRemoveEscaped();
 
