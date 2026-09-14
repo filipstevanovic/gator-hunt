@@ -31,7 +31,7 @@ public class AlligatorSpawner {
     // row's interval is scaled up by how much slower it is than the
     // fastest one, so it accumulates alligators at the same rate.
     private static final long FASTEST_ROW_INTERVAL_NS = GameStats.NANOSECONDS_PER_SECOND * 2;
-    private static final int FASTEST_ROW_SPEED = 5;
+    private static final int FASTEST_ROW_SPEED = 10;
 
     /** Each row's actual interval is jittered by up to this fraction of its base value, so spawns don't land in a perfectly mechanical rhythm. */
     private static final double JITTER_FRACTION = 0.2;
@@ -46,11 +46,12 @@ public class AlligatorSpawner {
         // spaced further apart than a plain 1/N split of the screen, since
         // drawn alligators are scaled up noticeably from their sprite's
         // native size (see GatorHuntGame.ALLIGATOR_SCALE)
+        // 2x the original AWT version's speeds, so there's less reaction time
         spawnRows = new int[][] {
-            { screenWidth, (int) (screenHeight * 0.55), -2, 20 },
-            { screenWidth, (int) (screenHeight * 0.64), -3, 30 },
-            { screenWidth, (int) (screenHeight * 0.73), -4, 40 },
-            { screenWidth, (int) (screenHeight * 0.82), -5, 50 },
+            { screenWidth, (int) (screenHeight * 0.55), -4, 20 },
+            { screenWidth, (int) (screenHeight * 0.64), -6, 30 },
+            { screenWidth, (int) (screenHeight * 0.73), -8, 40 },
+            { screenWidth, (int) (screenHeight * 0.82), -10, 50 },
         };
 
         baseIntervalNs = new long[spawnRows.length];

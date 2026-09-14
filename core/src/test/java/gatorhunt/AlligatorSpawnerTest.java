@@ -48,8 +48,8 @@ class AlligatorSpawnerTest {
         AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080, 0L, new Random(7));
         Random random = new Random(99);
 
-        int fastestRowY = (int) (1080 * 0.82); // speed -5, base interval 2s
-        int slowestRowY = (int) (1080 * 0.55); // speed -2, base interval 5s
+        int fastestRowY = (int) (1080 * 0.82); // speed -10, base interval 2s
+        int slowestRowY = (int) (1080 * 0.55); // speed -4, base interval 5s
         int fastestCount = 0;
         int slowestCount = 0;
 
