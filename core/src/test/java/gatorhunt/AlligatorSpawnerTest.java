@@ -15,7 +15,7 @@ class AlligatorSpawnerTest {
         AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080);
         Random random = new Random(42);
 
-        spawner.spawn(1_000_000_000L, random, null);
+        spawner.spawn(1_000_000_000L, random, null, 140, 80);
 
         assertFalse(spawner.isDue(1_000_000_000L + 1));
         assertTrue(spawner.isDue(1_000_000_000L + GameStats.NANOSECONDS_PER_SECOND / 2));
@@ -26,7 +26,7 @@ class AlligatorSpawnerTest {
         AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080);
         Random random = new Random(42);
 
-        Alligator alligator = spawner.spawn(0L, random, null);
+        Alligator alligator = spawner.spawn(0L, random, null, 140, 80);
 
         assertTrue(alligator.x >= 1920);
     }
@@ -36,12 +36,23 @@ class AlligatorSpawnerTest {
         AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080);
         Random random = new Random(42);
 
-        int firstRowY = spawner.spawn(0L, random, null).y;
-        spawner.spawn(1L, random, null);
-        spawner.spawn(2L, random, null);
-        spawner.spawn(3L, random, null);
-        int fifthRowY = spawner.spawn(4L, random, null).y;
+        int firstRowY = spawner.spawn(0L, random, null, 140, 80).y;
+        spawner.spawn(1L, random, null, 140, 80);
+        spawner.spawn(2L, random, null, 140, 80);
+        spawner.spawn(3L, random, null, 140, 80);
+        int fifthRowY = spawner.spawn(4L, random, null, 140, 80).y;
 
         assertEquals(firstRowY, fifthRowY);
+    }
+
+    @Test
+    void spawnedAlligatorHasTheGivenSize() {
+        AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080);
+        Random random = new Random(42);
+
+        Alligator alligator = spawner.spawn(0L, random, null, 224, 128);
+
+        assertEquals(224, alligator.width);
+        assertEquals(128, alligator.height);
     }
 }

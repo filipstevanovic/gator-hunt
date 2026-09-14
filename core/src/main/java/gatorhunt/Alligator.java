@@ -13,20 +13,27 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
  * layout math assumes Y-up, so a Y-down camera would render text
  * upside down while leaving sprites looking correct, which is worse to
  * get subtly wrong than converting coordinates explicitly here.
+ *
+ * width/height are passed in rather than read from the texture here, so
+ * this class stays constructible (and testable) without a real Texture.
  */
 public class Alligator {
 
     public int x;
     public int y;
     public final int points;
+    public final int width;
+    public final int height;
     private final int speed;
     private final Texture image;
 
-    public Alligator(int x, int y, int speed, int points, Texture image) {
+    public Alligator(int x, int y, int speed, int points, int width, int height, Texture image) {
         this.x = x;
         this.y = y;
         this.speed = speed;
         this.points = points;
+        this.width = width;
+        this.height = height;
         this.image = image;
     }
 
@@ -35,10 +42,15 @@ public class Alligator {
     }
 
     public boolean hasEscapedOffLeftEdge() {
-        return x < -image.getWidth();
+        return x < -width;
+    }
+
+    /** Generous on purpose: a touch is far less precise than a mouse cursor was. */
+    public boolean containsPoint(int px, int py) {
+        return px >= x && px < x + width && py >= y && py < y + height;
     }
 
     public void draw(SpriteBatch batch, int screenHeight) {
-        batch.draw(image, x, screenHeight - y - image.getHeight());
+        batch.draw(image, x, screenHeight - y - height, width, height);
     }
 }
