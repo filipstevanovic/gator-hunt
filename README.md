@@ -9,8 +9,8 @@ This started as a student project years ago, written in Java Swing/AWT. It was l
 
 ## How to play
 
-- Aim the crosshair with the mouse (desktop) or your finger (Android).
-- Click or tap to shoot. There's a short cooldown between shots.
+- Aim with the mouse (desktop) or your finger (Android) — click or tap directly on an alligator to shoot it.
+- There's a short cooldown between shots.
 - Score points for every alligator you hit before 20 of them escape off-screen.
 - On the game-over screen: tap, or press `Space`/`Enter`, to play again. `Esc` quits (desktop only).
 
@@ -24,6 +24,7 @@ This started as a student project years ago, written in Java Swing/AWT. It was l
 - **`desktop`** — a thin LWJGL3 launcher that runs `core` in a fullscreen window.
 - **`android`** — a thin Android launcher (`AndroidLauncher`) that runs the same `core` inside an Android `Activity`.
 - **`assets/sprites`** — shared images, used by both platform modules.
+- **`assets/fonts`** — `Bangers-Regular.ttf` ([SIL Open Font License](assets/fonts/OFL.txt), from [Google Fonts](https://fonts.google.com/specimen/Bangers)), used to generate the HUD font at runtime via `gdx-freetype`.
 
 ## Running the desktop version
 
@@ -37,10 +38,10 @@ On macOS this passes `-XstartOnFirstThread` automatically (required by LWJGL/GLF
 
 ## Running the Android version
 
-This module needs the Android SDK, which isn't available in every environment (it wasn't available in the one this was written in, so **the Android module has been verified to compile-evaluate correctly under Gradle, but has not actually been built or run** — the only thing missing was the SDK itself). To build it:
+Needs the Android SDK (Android Studio will install it for you on first sync). Verified end to end on a real device (Huawei P30 Pro): builds, installs, launches, renders, and registers touch input correctly.
 
 1. Open the project root in **Android Studio** (it will detect the Gradle multi-module setup automatically).
-2. Let it sync — Android Studio will prompt to install/update the SDK, build tools, and possibly offer an "Upgrade Assistant" if `compileSdk 35` / Android Gradle Plugin `9.4.0` are no longer the latest by the time you read this. Accept the suggested versions.
+2. Let it sync — Android Studio will prompt to install/update the SDK, build tools, and possibly offer an "Upgrade Assistant" if `compileSdk 36` / Android Gradle Plugin `9.4.0` are no longer the latest by the time you read this. Accept the suggested versions.
 3. Run the `android` configuration on a device or emulator, or from the command line once the SDK is set up:
    ```bash
    ./gradlew android:installDebug
@@ -66,4 +67,6 @@ Covers the parts that don't need a display or a GPU: alligator movement, spawn-r
 
 ## A note on the AWT → LibGDX port
 
-LibGDX's `SpriteBatch` draws bottom-left-origin, Y-up by default, while the original game (and its input/collision code) was written top-left-origin, Y-down, like most 2D screen/AWT code. Rather than fight that with a flipped camera (which would also flip `BitmapFont` text upside down, since font layout assumes Y-up), every draw call converts coordinates explicitly — see `GatorHuntGame.flipY()`. Input and collision detection were left as-is in Y-down space, since `Gdx.input.getX()/getY()` already use that convention.
+LibGDX's `SpriteBatch` draws bottom-left-origin, Y-up by default, while the original game (and its input/collision code) was written top-left-origin, Y-down, like most 2D screen/AWT code. Rather than fight that with a flipped camera (which would also flip `BitmapFont` text upside down, since font layout assumes Y-up), every draw call converts coordinates explicitly — see `Alligator.draw()`. Input and collision detection were left as-is in Y-down space, since `Gdx.input.getX()/getY()` already use that convention.
+
+Shooting is handled through LibGDX's `InputProcessor.touchDown()` callback rather than polling `Gdx.input.isTouched()` once per frame. Polling only sees the touch state at the instant each frame happens to check it, so a quick tap can begin and end between two polls and never get registered; `touchDown()` is queued by LibGDX and guaranteed to fire for every touch, regardless of frame timing. This was a real, reproducible problem on a physical device (a Huawei P30 Pro) before the fix — confirmed by sending spaced taps via `adb shell input tap` and comparing against the `SHOTS FIRED` counter.

@@ -3,10 +3,13 @@ package gatorhunt;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
+import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.utils.ScreenUtils;
 
 import java.util.Iterator;
@@ -16,13 +19,15 @@ import java.util.Iterator;
  *
  * Rendering uses LibGDX's default Y-up SpriteBatch (origin bottom-left);
  * every draw call converts from the top-left-origin, Y-down coordinates
- * the original AWT version used, via {@link #flipY}. Input (mouse/touch,
- * unified by LibGDX) stays in Y-down screen coordinates throughout, same
- * as the original, so hit-testing math is untouched.
+ * the original AWT version used (see {@link Alligator#draw}). Input
+ * (mouse/touch, unified by LibGDX) stays in Y-down screen coordinates
+ * throughout, same as the original, so hit-testing math is untouched.
  */
 public class GatorHuntGame extends ApplicationAdapter {
 
     private static final int MAX_ESCAPED_ALLIGATORS = 20;
+    private static final float HUD_MARGIN = 24f;
+    private static final float HUD_STAT_GAP = 48f;
 
     private enum State {
         PLAYING,
@@ -31,13 +36,11 @@ public class GatorHuntGame extends ApplicationAdapter {
 
     private SpriteBatch batch;
     private BitmapFont font;
+    private final GlyphLayout layout = new GlyphLayout();
 
     private Texture backgroundImage;
     private Texture grassImage;
     private Texture alligatorImage;
-    private Texture crosshairImage;
-    private int crosshairHalfWidth;
-    private int crosshairHalfHeight;
 
     private int screenWidth;
     private int screenHeight;
@@ -49,22 +52,59 @@ public class GatorHuntGame extends ApplicationAdapter {
     @Override
     public void create() {
         batch = new SpriteBatch();
-        font = new BitmapFont();
-        font.setColor(Color.WHITE);
 
         backgroundImage = new Texture("sprites/background.jpg");
         grassImage = new Texture("sprites/grass.png");
         alligatorImage = new Texture("sprites/alligator.png");
-        crosshairImage = new Texture("sprites/crosshair.png");
-
-        // halved for more precise aiming around the crosshair's center
-        crosshairHalfWidth = crosshairImage.getWidth() / 2;
-        crosshairHalfHeight = crosshairImage.getHeight() / 2;
 
         screenWidth = Gdx.graphics.getWidth();
         screenHeight = Gdx.graphics.getHeight();
 
+        font = createHudFont();
+
+        // Event-driven rather than polling Gdx.input.isTouched() once per frame:
+        // polling only sees the touch state at the instant each frame happens to
+        // check, so a quick tap can start and end between two polls and never
+        // get seen. touchDown() is queued and guaranteed to fire for every touch,
+        // regardless of frame timing.
+        Gdx.input.setInputProcessor(new InputAdapter() {
+            @Override
+            public boolean touchDown(int screenX, int screenY, int pointer, int button) {
+                if (state == State.PLAYING) {
+                    fireIfOffCooldown(System.nanoTime(), screenX, screenY);
+                } else if (state == State.GAME_OVER) {
+                    startNewGame();
+                }
+                return true;
+            }
+        });
+
         startNewGame();
+    }
+
+    /**
+     * A bold display font generated from a TTF at a size proportional to the
+     * screen, with a dark outline so the HUD stays readable over the busy
+     * swamp background. Replaces LibGDX's default bitmap font, which was
+     * small and thin regardless of screen resolution.
+     */
+    private BitmapFont createHudFont() {
+        int fontSize = Math.max(32, screenHeight / 18);
+
+        FreeTypeFontGenerator generator =
+                new FreeTypeFontGenerator(Gdx.files.internal("fonts/Bangers-Regular.ttf"));
+        try {
+            FreeTypeFontGenerator.FreeTypeFontParameter parameter = new FreeTypeFontGenerator.FreeTypeFontParameter();
+            parameter.size = fontSize;
+            parameter.color = Color.WHITE;
+            parameter.borderWidth = fontSize / 14f;
+            parameter.borderColor = Color.BLACK;
+            parameter.minFilter = Texture.TextureFilter.Linear;
+            parameter.magFilter = Texture.TextureFilter.Linear;
+            return generator.generateFont(parameter);
+        } finally {
+            generator.dispose();
+        }
     }
 
     private void startNewGame() {
@@ -82,7 +122,7 @@ public class GatorHuntGame extends ApplicationAdapter {
 
         if (state == State.PLAYING) {
             update();
-        } else if (state == State.GAME_OVER && shouldRestart()) {
+        } else if (state == State.GAME_OVER && isRestartKeyPressed()) {
             startNewGame();
         }
 
@@ -100,10 +140,6 @@ public class GatorHuntGame extends ApplicationAdapter {
         }
 
         moveAlligatorsAndRemoveEscaped();
-
-        if (Gdx.input.isTouched()) {
-            fireIfOffCooldown(now);
-        }
 
         if (stats.getEscapedCount() >= MAX_ESCAPED_ALLIGATORS) {
             state = State.GAME_OVER;
@@ -123,20 +159,17 @@ public class GatorHuntGame extends ApplicationAdapter {
         }
     }
 
-    private void fireIfOffCooldown(long now) {
+    private void fireIfOffCooldown(long now, int touchX, int touchY) {
         if (!stats.canFireShot(now)) {
             return;
         }
 
         stats.incrementShotsFired();
 
-        int mouseX = Gdx.input.getX();
-        int mouseY = Gdx.input.getY();
-
         Iterator<Alligator> iterator = stats.getAlligators().iterator();
         while (iterator.hasNext()) {
             Alligator alligator = iterator.next();
-            if (hits(alligator, mouseX, mouseY)) {
+            if (hits(alligator, touchX, touchY)) {
                 stats.incrementKilledCount();
                 stats.addScore(alligator.points);
                 iterator.remove();
@@ -148,17 +181,16 @@ public class GatorHuntGame extends ApplicationAdapter {
     }
 
     /** The alligator's hitbox is its head and body, roughly — not the full sprite bounds. */
-    private boolean hits(Alligator alligator, int mouseX, int mouseY) {
-        boolean hitsHead = mouseX >= alligator.x + 2 && mouseX < alligator.x + 2 + 27
-                && mouseY >= alligator.y + 30 && mouseY < alligator.y + 30 + 30;
-        boolean hitsBody = mouseX >= alligator.x + 30 && mouseX < alligator.x + 30 + 88
-                && mouseY >= alligator.y + 30 && mouseY < alligator.y + 30 + 25;
+    private boolean hits(Alligator alligator, int touchX, int touchY) {
+        boolean hitsHead = touchX >= alligator.x + 2 && touchX < alligator.x + 2 + 27
+                && touchY >= alligator.y + 30 && touchY < alligator.y + 30 + 30;
+        boolean hitsBody = touchX >= alligator.x + 30 && touchX < alligator.x + 30 + 88
+                && touchY >= alligator.y + 30 && touchY < alligator.y + 30 + 25;
         return hitsHead || hitsBody;
     }
 
-    private boolean shouldRestart() {
-        return Gdx.input.justTouched()
-                || Gdx.input.isKeyJustPressed(Input.Keys.SPACE)
+    private boolean isRestartKeyPressed() {
+        return Gdx.input.isKeyJustPressed(Input.Keys.SPACE)
                 || Gdx.input.isKeyJustPressed(Input.Keys.ENTER);
     }
 
@@ -171,27 +203,34 @@ public class GatorHuntGame extends ApplicationAdapter {
 
         batch.draw(grassImage, 0, 0, screenWidth, grassImage.getHeight());
 
-        int mouseX = Gdx.input.getX();
-        int mouseY = Gdx.input.getY();
-        batch.draw(crosshairImage,
-                mouseX - crosshairHalfWidth,
-                flipY(mouseY - crosshairHalfHeight, crosshairImage.getHeight()));
-
-        font.draw(batch, "ESCAPED: " + stats.getEscapedCount(), 10, textTopY(21));
-        font.draw(batch, "KILLED: " + stats.getKilledCount(), 160, textTopY(21));
-        font.draw(batch, "SHOTS FIRED: " + stats.getShotsFired(), 300, textTopY(21));
-        font.draw(batch, "SCORE: " + stats.getScore(), 530, textTopY(21));
+        drawHud();
 
         if (state == State.GAME_OVER) {
-            font.draw(batch, "GAME OVER", screenWidth / 2f - 50, textTopY(screenHeight * 0.25f));
-            font.draw(batch, "Tap, or press SPACE/ENTER, to try again.",
-                    screenWidth / 2f - 250, textTopY(screenHeight * 0.30f));
+            drawCentered("GAME OVER", screenHeight * 0.25f);
+            drawCentered("Tap, or press SPACE/ENTER, to try again.", screenHeight * 0.34f);
         }
     }
 
-    /** Converts a top-left-origin, Y-down draw position into LibGDX's bottom-left-origin, Y-up space. */
-    private float flipY(float topDownY, float height) {
-        return screenHeight - topDownY - height;
+    private void drawHud() {
+        float x = HUD_MARGIN;
+        float y = textTopY(HUD_MARGIN);
+
+        x = drawStat(x, y, "ESCAPED: " + stats.getEscapedCount());
+        x = drawStat(x, y, "KILLED: " + stats.getKilledCount());
+        x = drawStat(x, y, "SHOTS FIRED: " + stats.getShotsFired());
+        drawStat(x, y, "SCORE: " + stats.getScore());
+    }
+
+    /** Draws one HUD stat at x and returns the x position the next one should start at. */
+    private float drawStat(float x, float y, String text) {
+        font.draw(batch, text, x, y);
+        layout.setText(font, text);
+        return x + layout.width + HUD_STAT_GAP;
+    }
+
+    private void drawCentered(String text, float distanceFromTop) {
+        layout.setText(font, text);
+        font.draw(batch, text, (screenWidth - layout.width) / 2f, textTopY(distanceFromTop));
     }
 
     private float textTopY(float distanceFromTop) {
@@ -205,6 +244,5 @@ public class GatorHuntGame extends ApplicationAdapter {
         backgroundImage.dispose();
         grassImage.dispose();
         alligatorImage.dispose();
-        crosshairImage.dispose();
     }
 }
