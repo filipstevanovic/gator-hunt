@@ -2,12 +2,12 @@ apply plugin: "com.android.application"
 
 android {
     namespace = "com.filipstevanovic.gatorhunt"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.filipstevanovic.gatorhunt"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
     }
