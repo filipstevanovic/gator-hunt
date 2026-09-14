@@ -6,9 +6,15 @@ import java.util.Random;
 
 /**
  * Mutable state for one game session: the alligators currently on
- * screen, the score, and shot timing.
+ * screen, the score, and shot timing. Pure logic, no rendering — kept
+ * independent of any platform so it can be unit tested directly.
  */
 public class GameStats {
+
+    public static final long NANOSECONDS_PER_SECOND = 1_000_000_000L;
+
+    /** A shot can only be fired once this much time has passed since the last one. */
+    public static final long SHOT_COOLDOWN_NS = NANOSECONDS_PER_SECOND / 3;
 
     private final List<Alligator> alligators = new ArrayList<>();
     private final Random random = new Random();
@@ -18,9 +24,6 @@ public class GameStats {
     private int score;
     private int shotsFired;
     private long lastShotTime;
-
-    /** A shot can only be fired once this much time has passed since the last one. */
-    private final long shotCooldownNs = Engine.NANOSECONDS_PER_SECOND / 3;
 
     public Random getRandom() {
         return random;
@@ -70,7 +73,7 @@ public class GameStats {
         this.lastShotTime = lastShotTime;
     }
 
-    public long getShotCooldownNs() {
-        return shotCooldownNs;
+    public boolean canFireShot(long now) {
+        return now - lastShotTime >= SHOT_COOLDOWN_NS;
     }
 }
