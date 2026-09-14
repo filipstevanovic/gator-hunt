@@ -53,9 +53,8 @@ Once it runs correctly on a device:
 
 1. Create a Google Play Developer account (one-time $25 fee).
 2. Generate a signing key and build a signed **Android App Bundle**: `./gradlew android:bundleRelease` (Android Studio's Build menu can also do this with a guided wizard).
-3. Replace the placeholder launcher icon (currently just the alligator sprite resized — see `android/res/mipmap-*/ic_launcher.png`) with a real app icon.
-4. Fill in the Play Console store listing: screenshots, description, content rating questionnaire, privacy policy (simple for an offline game with no data collection, but still required).
-5. Submit for review.
+3. Fill in the Play Console store listing: screenshots, description, content rating questionnaire, privacy policy (simple for an offline game with no data collection, but still required). A 512x512 copy of the launcher icon for the listing itself is at `store/play_store_icon_512.png`.
+4. Submit for review.
 
 ## Tests
 
