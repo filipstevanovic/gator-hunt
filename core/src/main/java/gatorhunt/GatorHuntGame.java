@@ -60,6 +60,7 @@ public class GatorHuntGame extends ApplicationAdapter {
     private GameStats stats;
     private AlligatorSpawner spawner;
     private State state;
+    private DifficultyRamp difficultyRamp;
 
     @Override
     public void create() {
@@ -126,7 +127,9 @@ public class GatorHuntGame extends ApplicationAdapter {
 
     private void startNewGame() {
         stats = new GameStats();
-        spawner = new AlligatorSpawner(screenWidth, screenHeight, System.nanoTime(), stats.getRandom());
+        long now = System.nanoTime();
+        spawner = new AlligatorSpawner(screenWidth, screenHeight, now, stats.getRandom());
+        difficultyRamp = new DifficultyRamp(now);
         state = State.PLAYING;
     }
 
@@ -155,18 +158,18 @@ public class GatorHuntGame extends ApplicationAdapter {
         stats.getAlligators().addAll(
                 spawner.spawnDue(now, stats.getRandom(), alligatorImage, alligatorWidth, alligatorHeight));
 
-        moveAlligatorsAndRemoveEscaped();
+        moveAlligatorsAndRemoveEscaped(difficultyRamp.speedMultiplier(now));
 
         if (stats.getEscapedCount() >= MAX_ESCAPED_ALLIGATORS) {
             state = State.GAME_OVER;
         }
     }
 
-    private void moveAlligatorsAndRemoveEscaped() {
+    private void moveAlligatorsAndRemoveEscaped(float speedMultiplier) {
         Iterator<Alligator> iterator = stats.getAlligators().iterator();
         while (iterator.hasNext()) {
             Alligator alligator = iterator.next();
-            alligator.updatePosition();
+            alligator.updatePosition(speedMultiplier);
 
             if (alligator.hasEscapedOffLeftEdge()) {
                 iterator.remove();
@@ -237,7 +240,8 @@ public class GatorHuntGame extends ApplicationAdapter {
 
         if (state == State.GAME_OVER) {
             drawCentered(titleFont, "GAME OVER", screenHeight * 0.25f);
-            drawCentered(hudFont, "Tap to try again.", screenHeight * 0.40f);
+            drawCentered(hudFont, "Score: " + stats.getScore(), screenHeight * 0.36f);
+            drawCentered(hudFont, "Tap to try again.", screenHeight * 0.44f);
         }
     }
 

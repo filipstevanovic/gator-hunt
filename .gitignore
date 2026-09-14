@@ -2,6 +2,10 @@ build/
 .gradle/
 local.properties
 android/libs/
+android/release/
+*.aab
+*.jks
+*.keystore
 *.class
 .idea/
 *.iml

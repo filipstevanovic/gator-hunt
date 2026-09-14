@@ -12,10 +12,19 @@ class AlligatorTest {
     void movesLeftByItsSpeedEachUpdate() {
         Alligator alligator = new Alligator(100, 50, -5, 30, 140, 80, null);
 
-        alligator.updatePosition();
+        alligator.updatePosition(1f);
 
         assertEquals(95, alligator.x);
         assertEquals(50, alligator.y);
+    }
+
+    @Test
+    void speedMultiplierScalesTheMove() {
+        Alligator alligator = new Alligator(100, 50, -5, 30, 140, 80, null);
+
+        alligator.updatePosition(1.4f);
+
+        assertEquals(93, alligator.x); // 100 + round(-5 * 1.4) = 100 - 7
     }
 
     @Test

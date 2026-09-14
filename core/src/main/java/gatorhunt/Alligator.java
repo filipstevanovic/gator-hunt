@@ -37,8 +37,9 @@ public class Alligator {
         this.image = image;
     }
 
-    public void updatePosition() {
-        x += speed;
+    /** speedMultiplier lets the difficulty ramp speed everyone up together without changing each alligator's base speed. */
+    public void updatePosition(float speedMultiplier) {
+        x += Math.round(speed * speedMultiplier);
     }
 
     public boolean hasEscapedOffLeftEdge() {
