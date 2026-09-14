@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Random;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -13,59 +12,69 @@ class AlligatorSpawnerTest {
 
     @Test
     void spawnsNothingBeforeAnyRowsIntervalHasPassed() {
-        AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080, 0L);
-        Random random = new Random(42);
+        AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080, 0L, new Random(42));
 
-        List<Alligator> spawned = spawner.spawnDue(1L, random, null, 140, 80);
+        // even with jitter, no row's interval can be this short
+        List<Alligator> spawned = spawner.spawnDue(1L, new Random(1), null, 140, 80);
 
         assertTrue(spawned.isEmpty());
     }
 
     @Test
-    void everyRowHasSpawnedAtLeastOnceAfterTheSlowestRowsIntervalPasses() {
-        AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080, 0L);
-        Random random = new Random(42);
+    void everyRowHasSpawnedAtLeastOnceAfterAGenerousWait() {
+        AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080, 0L, new Random(42));
 
-        // the slowest row (speed -2) has the longest interval, 2.5x the
-        // fastest row's 2s -- comfortably past that guarantees all 4 are due
-        long slowestRowInterval = GameStats.NANOSECONDS_PER_SECOND * 5;
-        List<Alligator> spawned = spawner.spawnDue(slowestRowInterval, random, null, 140, 80);
+        // the slowest row's base interval is 5s; well past its worst-case
+        // +20% jitter (6s) guarantees every row has fired at least once
+        long comfortablyPastSlowestRow = GameStats.NANOSECONDS_PER_SECOND * 8;
+        List<Alligator> spawned = spawner.spawnDue(comfortablyPastSlowestRow, new Random(1), null, 140, 80);
 
-        assertEquals(4, spawned.size());
+        assertTrue(spawned.size() == 4);
     }
 
     @Test
-    void fasterRowsSpawnMoreOftenThanSlowerOnes() {
-        AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080, 0L);
-        Random random = new Random(42);
+    void fastestRowIsNotDueBeforeItsInterval() {
+        AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080, 0L, new Random(42));
 
-        // shortly after construction, only the fastest row (speed -5,
-        // interval 2s -- matching the original AWT version's effective
-        // per-row pacing) should be due; the others need proportionally
-        // longer
-        long fastestRowInterval = GameStats.NANOSECONDS_PER_SECOND * 2;
-        List<Alligator> spawned = spawner.spawnDue(fastestRowInterval, random, null, 140, 80);
+        // the fastest row's base interval is 2s; its worst-case -20%
+        // jitter is still 1.6s, so nothing should be due by 1s
+        List<Alligator> spawned = spawner.spawnDue(GameStats.NANOSECONDS_PER_SECOND, new Random(1), null, 140, 80);
 
-        assertEquals(1, spawned.size());
-        assertEquals((int) (1080 * 0.82), spawned.get(0).y); // the fastest row's y
+        assertTrue(spawned.isEmpty());
     }
 
     @Test
-    void fastestRowIsNotDueBeforeTwoSeconds() {
-        AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080, 0L);
-        Random random = new Random(42);
+    void fasterRowsSpawnMoreOftenThanSlowerOnesOverTime() {
+        AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080, 0L, new Random(7));
+        Random random = new Random(99);
 
-        List<Alligator> spawned = spawner.spawnDue(GameStats.NANOSECONDS_PER_SECOND, random, null, 140, 80);
+        int fastestRowY = (int) (1080 * 0.82); // speed -5, base interval 2s
+        int slowestRowY = (int) (1080 * 0.55); // speed -2, base interval 5s
+        int fastestCount = 0;
+        int slowestCount = 0;
 
-        assertFalse(spawned.stream().anyMatch(a -> a.y == (int) (1080 * 0.82)));
+        long step = GameStats.NANOSECONDS_PER_SECOND / 10;
+        long twoSimulatedMinutes = GameStats.NANOSECONDS_PER_SECOND * 120;
+        for (long now = 0; now <= twoSimulatedMinutes; now += step) {
+            for (Alligator alligator : spawner.spawnDue(now, random, null, 140, 80)) {
+                if (alligator.y == fastestRowY) {
+                    fastestCount++;
+                } else if (alligator.y == slowestRowY) {
+                    slowestCount++;
+                }
+            }
+        }
+
+        // roughly 60 vs 24 spawns expected -- a wide enough margin that
+        // +/-20% jitter on individual intervals can't flip the comparison
+        assertTrue(fastestCount > slowestCount);
     }
 
     @Test
     void spawnsAlligatorsStartingOffTheRightEdgeOfTheScreen() {
-        AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080, 0L);
-        Random random = new Random(42);
+        AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080, 0L, new Random(42));
 
-        List<Alligator> spawned = spawner.spawnDue(GameStats.NANOSECONDS_PER_SECOND * 5, random, null, 140, 80);
+        List<Alligator> spawned = spawner.spawnDue(GameStats.NANOSECONDS_PER_SECOND * 5, new Random(1), null, 140, 80);
 
         assertFalse(spawned.isEmpty());
         assertTrue(spawned.stream().allMatch(a -> a.x >= 1920));
@@ -73,10 +82,9 @@ class AlligatorSpawnerTest {
 
     @Test
     void spawnedAlligatorHasTheGivenSize() {
-        AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080, 0L);
-        Random random = new Random(42);
+        AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080, 0L, new Random(42));
 
-        List<Alligator> spawned = spawner.spawnDue(GameStats.NANOSECONDS_PER_SECOND * 5, random, null, 224, 128);
+        List<Alligator> spawned = spawner.spawnDue(GameStats.NANOSECONDS_PER_SECOND * 5, new Random(1), null, 224, 128);
 
         assertFalse(spawned.isEmpty());
         assertTrue(spawned.stream().allMatch(a -> a.width == 224 && a.height == 128));

@@ -126,7 +126,7 @@ public class GatorHuntGame extends ApplicationAdapter {
 
     private void startNewGame() {
         stats = new GameStats();
-        spawner = new AlligatorSpawner(screenWidth, screenHeight, System.nanoTime());
+        spawner = new AlligatorSpawner(screenWidth, screenHeight, System.nanoTime(), stats.getRandom());
         state = State.PLAYING;
     }
 

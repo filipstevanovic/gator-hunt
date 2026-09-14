@@ -33,12 +33,16 @@ public class AlligatorSpawner {
     private static final long FASTEST_ROW_INTERVAL_NS = GameStats.NANOSECONDS_PER_SECOND * 2;
     private static final int FASTEST_ROW_SPEED = 5;
 
+    /** Each row's actual interval is jittered by up to this fraction of its base value, so spawns don't land in a perfectly mechanical rhythm. */
+    private static final double JITTER_FRACTION = 0.2;
+
     /** One row per entry: {startX, y, speed, points}. Speed is negative — alligators move leftward. */
     private final int[][] spawnRows;
-    private final long[] spawnIntervalNs;
+    private final long[] baseIntervalNs;
+    private final long[] nextIntervalNs;
     private final long[] lastSpawnTime;
 
-    public AlligatorSpawner(int screenWidth, int screenHeight, long now) {
+    public AlligatorSpawner(int screenWidth, int screenHeight, long now, Random random) {
         // spaced further apart than a plain 1/N split of the screen, since
         // drawn alligators are scaled up noticeably from their sprite's
         // native size (see GatorHuntGame.ALLIGATOR_SCALE)
@@ -49,11 +53,13 @@ public class AlligatorSpawner {
             { screenWidth, (int) (screenHeight * 0.82), -5, 50 },
         };
 
-        spawnIntervalNs = new long[spawnRows.length];
+        baseIntervalNs = new long[spawnRows.length];
+        nextIntervalNs = new long[spawnRows.length];
         lastSpawnTime = new long[spawnRows.length];
         for (int i = 0; i < spawnRows.length; i++) {
             int speed = Math.abs(spawnRows[i][2]);
-            spawnIntervalNs[i] = FASTEST_ROW_INTERVAL_NS * FASTEST_ROW_SPEED / speed;
+            baseIntervalNs[i] = FASTEST_ROW_INTERVAL_NS * FASTEST_ROW_SPEED / speed;
+            nextIntervalNs[i] = jittered(baseIntervalNs[i], random);
             // starts each row's clock at construction time, rather than
             // System.nanoTime()'s arbitrary large epoch, so rows don't all
             // spawn simultaneously on the very first check
@@ -66,14 +72,21 @@ public class AlligatorSpawner {
         List<Alligator> spawned = new ArrayList<>(1);
 
         for (int i = 0; i < spawnRows.length; i++) {
-            if (now - lastSpawnTime[i] >= spawnIntervalNs[i]) {
+            if (now - lastSpawnTime[i] >= nextIntervalNs[i]) {
                 int[] row = spawnRows[i];
                 int startX = row[0] + random.nextInt(200);
                 spawned.add(new Alligator(startX, row[1], row[2], row[3], width, height, image));
                 lastSpawnTime[i] = now;
+                nextIntervalNs[i] = jittered(baseIntervalNs[i], random);
             }
         }
 
         return spawned;
+    }
+
+    /** Randomizes an interval by up to +/- JITTER_FRACTION, keeping the long-run average equal to base. */
+    private long jittered(long base, Random random) {
+        double factor = 1.0 + (random.nextDouble() * 2 - 1) * JITTER_FRACTION;
+        return (long) (base * factor);
     }
 }
