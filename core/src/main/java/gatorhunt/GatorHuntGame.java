@@ -12,6 +12,7 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.utils.ScreenUtils;
 
 import java.util.Iterator;
@@ -60,6 +61,9 @@ public class GatorHuntGame extends ApplicationAdapter {
     private int alligatorWidth;
     private int alligatorHeight;
 
+    private Sound hitSound;
+    private Sound missSound;
+
     private int screenWidth;
     private int screenHeight;
 
@@ -86,6 +90,9 @@ public class GatorHuntGame extends ApplicationAdapter {
         pixmap.fill();
         whitePixel = new Texture(pixmap);
         pixmap.dispose();
+
+        hitSound = Gdx.audio.newSound(Gdx.files.internal("sounds/hit.wav"));
+        missSound = Gdx.audio.newSound(Gdx.files.internal("sounds/miss.wav"));
 
         screenWidth = Gdx.graphics.getWidth();
         screenHeight = Gdx.graphics.getHeight();
@@ -214,6 +221,7 @@ public class GatorHuntGame extends ApplicationAdapter {
 
         stats.incrementShotsFired();
 
+        boolean hit = false;
         Iterator<Alligator> iterator = stats.getAlligators().iterator();
         while (iterator.hasNext()) {
             Alligator alligator = iterator.next();
@@ -221,10 +229,12 @@ public class GatorHuntGame extends ApplicationAdapter {
                 stats.incrementKilledCount();
                 stats.addScore(alligator.points);
                 iterator.remove();
+                hit = true;
                 break;
             }
         }
 
+        (hit ? hitSound : missSound).play();
         stats.setLastShotTime(now);
     }
 
@@ -355,5 +365,7 @@ public class GatorHuntGame extends ApplicationAdapter {
         grassImage.dispose();
         alligatorImage.dispose();
         whitePixel.dispose();
+        hitSound.dispose();
+        missSound.dispose();
     }
 }
