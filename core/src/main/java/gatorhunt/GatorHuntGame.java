@@ -5,11 +5,13 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.ScreenUtils;
 
 import java.util.Iterator;
@@ -37,6 +39,9 @@ public class GatorHuntGame extends ApplicationAdapter {
      */
     private static final float ALLIGATOR_SCALE = 1.6f;
 
+    private static final Color NEW_GAME_BUTTON_COLOR = new Color(0.12f, 0.42f, 0.24f, 0.9f);
+    private static final Color EXIT_BUTTON_COLOR = new Color(0.42f, 0.14f, 0.12f, 0.9f);
+
     private enum State {
         START,
         PLAYING,
@@ -51,6 +56,7 @@ public class GatorHuntGame extends ApplicationAdapter {
     private Texture backgroundImage;
     private Texture grassImage;
     private Texture alligatorImage;
+    private Texture whitePixel;
     private int alligatorWidth;
     private int alligatorHeight;
 
@@ -74,6 +80,12 @@ public class GatorHuntGame extends ApplicationAdapter {
         alligatorWidth = Math.round(alligatorImage.getWidth() * ALLIGATOR_SCALE);
         alligatorHeight = Math.round(alligatorImage.getHeight() * ALLIGATOR_SCALE);
 
+        Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+        pixmap.setColor(Color.WHITE);
+        pixmap.fill();
+        whitePixel = new Texture(pixmap);
+        pixmap.dispose();
+
         screenWidth = Gdx.graphics.getWidth();
         screenHeight = Gdx.graphics.getHeight();
 
@@ -89,6 +101,14 @@ public class GatorHuntGame extends ApplicationAdapter {
             public boolean touchDown(int screenX, int screenY, int pointer, int button) {
                 if (state == State.PLAYING) {
                     fireIfOffCooldown(System.nanoTime(), screenX, screenY);
+                } else if (state == State.GAME_OVER) {
+                    // only the two buttons respond -- a stray tap after the
+                    // round ends used to restart instantly and lose the score
+                    if (newGameButtonBounds().contains(screenX, screenY)) {
+                        startNewGame();
+                    } else if (exitButtonBounds().contains(screenX, screenY)) {
+                        Gdx.app.exit();
+                    }
                 } else {
                     startNewGame();
                 }
@@ -246,8 +266,36 @@ public class GatorHuntGame extends ApplicationAdapter {
 
         if (state == State.GAME_OVER) {
             drawCentered(titleFont, "GAME OVER", screenHeight * 0.25f);
-            drawCentered(hudFont, "Tap to try again.", screenHeight * 0.44f);
+            drawButton(newGameButtonBounds(), "NEW GAME", NEW_GAME_BUTTON_COLOR);
+            drawButton(exitButtonBounds(), "EXIT", EXIT_BUTTON_COLOR);
         }
+    }
+
+    /** Top-left-origin, Y-down bounds (matching touch coordinates) -- see the class doc for why. */
+    private Rectangle newGameButtonBounds() {
+        float width = screenWidth * 0.24f;
+        float height = screenHeight * 0.13f;
+        float gap = screenWidth * 0.05f;
+        float left = (screenWidth - (width * 2 + gap)) / 2f;
+        float top = screenHeight * 0.46f;
+        return new Rectangle(left, top, width, height);
+    }
+
+    private Rectangle exitButtonBounds() {
+        Rectangle newGame = newGameButtonBounds();
+        float gap = screenWidth * 0.05f;
+        return new Rectangle(newGame.x + newGame.width + gap, newGame.y, newGame.width, newGame.height);
+    }
+
+    private void drawButton(Rectangle bounds, String label, Color color) {
+        batch.setColor(color);
+        batch.draw(whitePixel, bounds.x, screenHeight - bounds.y - bounds.height, bounds.width, bounds.height);
+        batch.setColor(Color.WHITE);
+
+        layout.setText(hudFont, label);
+        float x = bounds.x + (bounds.width - layout.width) / 2f;
+        float distanceFromTop = bounds.y + (bounds.height - layout.height) / 2f;
+        hudFont.draw(batch, label, x, textTopY(distanceFromTop));
     }
 
     private void drawHud() {
@@ -298,5 +346,6 @@ public class GatorHuntGame extends ApplicationAdapter {
         backgroundImage.dispose();
         grassImage.dispose();
         alligatorImage.dispose();
+        whitePixel.dispose();
     }
 }
