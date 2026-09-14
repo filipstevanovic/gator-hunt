@@ -67,6 +67,7 @@ public class GatorHuntGame extends ApplicationAdapter {
     private AlligatorSpawner spawner;
     private State state;
     private DifficultyRamp difficultyRamp;
+    private LevelUpBanner levelUpBanner;
     private long gameStartTime;
     private long elapsedNs;
 
@@ -152,6 +153,7 @@ public class GatorHuntGame extends ApplicationAdapter {
         long now = System.nanoTime();
         spawner = new AlligatorSpawner(screenWidth, screenHeight, now, stats.getRandom());
         difficultyRamp = new DifficultyRamp(now);
+        levelUpBanner = new LevelUpBanner();
         gameStartTime = now;
         elapsedNs = 0;
         state = State.PLAYING;
@@ -184,6 +186,7 @@ public class GatorHuntGame extends ApplicationAdapter {
                 spawner.spawnDue(now, stats.getRandom(), alligatorImage, alligatorWidth, alligatorHeight));
 
         moveAlligatorsAndRemoveEscaped(difficultyRamp.speedMultiplier(now));
+        levelUpBanner.update(difficultyRamp.level(now), now);
 
         if (stats.getEscapedCount() >= MAX_ESCAPED_ALLIGATORS) {
             state = State.GAME_OVER;
@@ -263,6 +266,10 @@ public class GatorHuntGame extends ApplicationAdapter {
 
         drawHud();
         drawElapsedTime();
+
+        if (state == State.PLAYING && levelUpBanner.isVisible(System.nanoTime())) {
+            drawCentered(titleFont, "LEVEL " + (levelUpBanner.level() + 1), screenHeight * 0.18f);
+        }
 
         if (state == State.GAME_OVER) {
             drawCentered(titleFont, "GAME OVER", screenHeight * 0.25f);
