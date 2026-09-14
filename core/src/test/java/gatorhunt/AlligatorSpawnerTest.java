@@ -66,7 +66,7 @@ class AlligatorSpawnerTest {
             }
         }
 
-        // roughly 60 vs 34 spawns expected -- a wide enough margin that
+        // roughly 60 vs 46 spawns expected -- a wide enough margin that
         // +/-20% jitter on individual intervals can't flip the comparison
         assertTrue(fastestCount > slowestCount);
     }

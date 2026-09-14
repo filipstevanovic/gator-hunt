@@ -38,10 +38,16 @@ public class AlligatorSpawner {
      * How strongly a row's interval follows its speed ratio to the fastest
      * row: 1.0 = fully proportional (equal density in every row); 0.0 =
      * every row shares the fastest row's interval (the original bug, where
-     * slow rows pile up badly). A middle value gives slower rows a bit more
+     * slow rows pile up badly). A middle value gives slower rows more
      * density than a "fair" split would, without the pile-up.
+     *
+     * 0.6 (equal standing count ~2.3 vs ~1.6 between slowest and fastest
+     * row) turned out too subtle to actually notice during play -- small
+     * absolute counts plus jitter's noise buried the difference. 0.3
+     * widens that to ~3.0 vs ~1.6, which reads clearly without going back
+     * to the original uncontrolled pile-up (~4.0, at exponent 0).
      */
-    private static final double DENSITY_BIAS_EXPONENT = 0.6;
+    private static final double DENSITY_BIAS_EXPONENT = 0.3;
 
     /** Each row's actual interval is jittered by up to this fraction of its base value, so spawns don't land in a perfectly mechanical rhythm. */
     private static final double JITTER_FRACTION = 0.2;

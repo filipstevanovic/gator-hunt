@@ -240,7 +240,6 @@ public class GatorHuntGame extends ApplicationAdapter {
 
         if (state == State.GAME_OVER) {
             drawCentered(titleFont, "GAME OVER", screenHeight * 0.25f);
-            drawCentered(hudFont, "Score: " + stats.getScore(), screenHeight * 0.36f);
             drawCentered(hudFont, "Tap to try again.", screenHeight * 0.44f);
         }
     }

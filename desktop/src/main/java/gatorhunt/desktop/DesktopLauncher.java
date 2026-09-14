@@ -6,11 +6,13 @@ import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
 import gatorhunt.GatorHuntGame;
 
 import java.io.File;
-import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.List;
 
 public class DesktopLauncher {
+
+    /** Marks a JVM as already relaunched with -XstartOnFirstThread, so it never relaunches itself again. */
+    private static final String RELAUNCHED_MARKER = "gatorhunt.relaunched";
 
     public static void main(String[] args) {
         if (relaunchedWithStartOnFirstThread()) {
@@ -29,14 +31,22 @@ public class DesktopLauncher {
     /**
      * LWJGL/GLFW requires macOS to run its event loop on the process's very
      * first thread, via the -XstartOnFirstThread JVM flag. That flag can
-     * only be set at JVM startup, so it doesn't help to set it here -- and
-     * whether it's already set depends entirely on how this was launched.
-     * Gradle's desktop:run task adds it (see desktop/build.gradle), but an
-     * IDE's "run main()" action generates its own run configuration that
-     * bypasses that, and crashes with "GLFW may only be used on the main
-     * thread". Rather than depend on every possible launcher remembering
-     * the flag, detect its absence here and relaunch in a new JVM that has
-     * it, the same trick LWJGL's own samples use.
+     * only be set at JVM startup, so whether it's already set depends
+     * entirely on how this was launched: Gradle's desktop:run task adds it
+     * (see desktop/build.gradle -- and also passes RELAUNCHED_MARKER, so
+     * that path never relaunches), but an IDE's "run main()" action or a
+     * plain "java -jar" doesn't.
+     *
+     * This used to check ManagementFactory.getRuntimeMXBean().getInputArguments()
+     * for the flag before relaunching -- but that never actually saw it (the
+     * native launcher consumes -XstartOnFirstThread before the JVM records
+     * its own input arguments), so the check always failed and every launch
+     * relaunched into a child that relaunched again, forever: caught in
+     * testing as 868 stacked java processes and a window that never opened.
+     * Rather than depend on detecting a flag that turns out not to be
+     * detectable, this sets its own marker system property on the child it
+     * spawns, and only ever relaunches when that marker is absent -- which
+     * is true at most once, on the original process.
      *
      * @return true if this process relaunched and the caller should just return.
      */
@@ -44,7 +54,7 @@ public class DesktopLauncher {
         if (!System.getProperty("os.name", "").toLowerCase().contains("mac")) {
             return false;
         }
-        if (ManagementFactory.getRuntimeMXBean().getInputArguments().contains("-XstartOnFirstThread")) {
+        if (System.getProperty(RELAUNCHED_MARKER) != null) {
             return false;
         }
 
@@ -52,13 +62,17 @@ public class DesktopLauncher {
         List<String> command = new ArrayList<>();
         command.add(javaBin);
         command.add("-XstartOnFirstThread");
+        command.add("-D" + RELAUNCHED_MARKER + "=true");
         command.add("-cp");
         command.add(System.getProperty("java.class.path"));
         command.add(DesktopLauncher.class.getName());
 
         try {
             Process process = new ProcessBuilder(command).inheritIO().start();
-            process.waitFor();
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                System.err.println("Relaunched process exited with code " + exitCode);
+            }
         } catch (Exception e) {
             throw new IllegalStateException("Failed to relaunch with -XstartOnFirstThread", e);
         }

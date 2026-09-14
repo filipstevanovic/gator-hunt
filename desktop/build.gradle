@@ -20,9 +20,12 @@ dependencies {
 // not under desktop/src/main/resources
 sourceSets.main.resources.srcDirs += ["../assets"]
 
-// LWJGL3/GLFW requires macOS to run its event loop on the process's first thread
+// LWJGL3/GLFW requires macOS to run its event loop on the process's first thread.
+// Also sets DesktopLauncher's own relaunch marker (see DesktopLauncher.java) so
+// this task's JVM doesn't relaunch itself again on top of already having the flag.
 tasks.named("run", JavaExec) {
     if (org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
         jvmArgs += "-XstartOnFirstThread"
+        jvmArgs += "-Dgatorhunt.relaunched=true"
     }
 }
