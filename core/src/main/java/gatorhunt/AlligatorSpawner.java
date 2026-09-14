@@ -21,9 +21,16 @@ import java.util.Random;
  */
 public class AlligatorSpawner {
 
-    // the fastest row keeps the original spawn pacing; every other row's
-    // interval is scaled up by how much slower it is than the fastest one
-    private static final long FASTEST_ROW_INTERVAL_NS = GameStats.NANOSECONDS_PER_SECOND / 2;
+    // The original AWT version cycled through all 4 rows on one shared
+    // 0.5s timer, so any GIVEN row actually only got a new alligator every
+    // 4 * 0.5s = 2s -- not every 0.5s, which was a mistake the first time
+    // this was tuned (it used the 0.5s round-robin *check* interval as if
+    // it were a single row's own interval, making every row spawn 4x more
+    // often than before instead of just rebalancing the slow one).
+    // The fastest row keeps that real, original 2s pacing; every other
+    // row's interval is scaled up by how much slower it is than the
+    // fastest one, so it accumulates alligators at the same rate.
+    private static final long FASTEST_ROW_INTERVAL_NS = GameStats.NANOSECONDS_PER_SECOND * 2;
     private static final int FASTEST_ROW_SPEED = 5;
 
     /** One row per entry: {startX, y, speed, points}. Speed is negative — alligators move leftward. */

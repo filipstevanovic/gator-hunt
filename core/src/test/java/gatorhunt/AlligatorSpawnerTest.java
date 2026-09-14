@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AlligatorSpawnerTest {
@@ -26,8 +27,8 @@ class AlligatorSpawnerTest {
         Random random = new Random(42);
 
         // the slowest row (speed -2) has the longest interval, 2.5x the
-        // fastest row's -- comfortably past that guarantees all 4 are due
-        long slowestRowInterval = GameStats.NANOSECONDS_PER_SECOND * 5 / 4;
+        // fastest row's 2s -- comfortably past that guarantees all 4 are due
+        long slowestRowInterval = GameStats.NANOSECONDS_PER_SECOND * 5;
         List<Alligator> spawned = spawner.spawnDue(slowestRowInterval, random, null, 140, 80);
 
         assertEquals(4, spawned.size());
@@ -39,9 +40,10 @@ class AlligatorSpawnerTest {
         Random random = new Random(42);
 
         // shortly after construction, only the fastest row (speed -5,
-        // interval 0.5s) should be due -- the others need proportionally
+        // interval 2s -- matching the original AWT version's effective
+        // per-row pacing) should be due; the others need proportionally
         // longer
-        long fastestRowInterval = GameStats.NANOSECONDS_PER_SECOND / 2;
+        long fastestRowInterval = GameStats.NANOSECONDS_PER_SECOND * 2;
         List<Alligator> spawned = spawner.spawnDue(fastestRowInterval, random, null, 140, 80);
 
         assertEquals(1, spawned.size());
@@ -49,12 +51,23 @@ class AlligatorSpawnerTest {
     }
 
     @Test
-    void spawnsAlligatorsStartingOffTheRightEdgeOfTheScreen() {
+    void fastestRowIsNotDueBeforeTwoSeconds() {
         AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080, 0L);
         Random random = new Random(42);
 
         List<Alligator> spawned = spawner.spawnDue(GameStats.NANOSECONDS_PER_SECOND, random, null, 140, 80);
 
+        assertFalse(spawned.stream().anyMatch(a -> a.y == (int) (1080 * 0.82)));
+    }
+
+    @Test
+    void spawnsAlligatorsStartingOffTheRightEdgeOfTheScreen() {
+        AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080, 0L);
+        Random random = new Random(42);
+
+        List<Alligator> spawned = spawner.spawnDue(GameStats.NANOSECONDS_PER_SECOND * 5, random, null, 140, 80);
+
+        assertFalse(spawned.isEmpty());
         assertTrue(spawned.stream().allMatch(a -> a.x >= 1920));
     }
 
@@ -63,8 +76,9 @@ class AlligatorSpawnerTest {
         AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080, 0L);
         Random random = new Random(42);
 
-        List<Alligator> spawned = spawner.spawnDue(GameStats.NANOSECONDS_PER_SECOND, random, null, 224, 128);
+        List<Alligator> spawned = spawner.spawnDue(GameStats.NANOSECONDS_PER_SECOND * 5, random, null, 224, 128);
 
+        assertFalse(spawned.isEmpty());
         assertTrue(spawned.stream().allMatch(a -> a.width == 224 && a.height == 128));
     }
 }
