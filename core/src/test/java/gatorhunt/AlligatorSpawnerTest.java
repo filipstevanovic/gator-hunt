@@ -24,8 +24,9 @@ class AlligatorSpawnerTest {
     void everyRowHasSpawnedAtLeastOnceAfterAGenerousWait() {
         AlligatorSpawner spawner = new AlligatorSpawner(1920, 1080, 0L, new Random(42));
 
-        // the slowest row's base interval is 5s; well past its worst-case
-        // +20% jitter (6s) guarantees every row has fired at least once
+        // the slowest row's base interval is ~3.5s (speed ratio 2.5,
+        // dampened by DENSITY_BIAS_EXPONENT); well past its worst-case
+        // +20% jitter (~4.2s) guarantees every row has fired at least once
         long comfortablyPastSlowestRow = GameStats.NANOSECONDS_PER_SECOND * 8;
         List<Alligator> spawned = spawner.spawnDue(comfortablyPastSlowestRow, new Random(1), null, 140, 80);
 
@@ -49,7 +50,7 @@ class AlligatorSpawnerTest {
         Random random = new Random(99);
 
         int fastestRowY = (int) (1080 * 0.82); // speed -10, base interval 2s
-        int slowestRowY = (int) (1080 * 0.55); // speed -4, base interval 5s
+        int slowestRowY = (int) (1080 * 0.55); // speed -4, base interval ~3.5s
         int fastestCount = 0;
         int slowestCount = 0;
 
@@ -65,7 +66,7 @@ class AlligatorSpawnerTest {
             }
         }
 
-        // roughly 60 vs 24 spawns expected -- a wide enough margin that
+        // roughly 60 vs 34 spawns expected -- a wide enough margin that
         // +/-20% jitter on individual intervals can't flip the comparison
         assertTrue(fastestCount > slowestCount);
     }

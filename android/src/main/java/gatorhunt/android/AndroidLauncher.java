@@ -23,6 +23,10 @@ public class AndroidLauncher extends AndroidApplication {
                     WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
         }
 
+        // A shooting-gallery game has long stretches with no touches -- without
+        // this the screen times out and locks mid-session.
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
         AndroidApplicationConfiguration config = new AndroidApplicationConfiguration();
         config.useImmersiveMode = true;
 

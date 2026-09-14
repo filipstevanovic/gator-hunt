@@ -9,12 +9,14 @@ import java.util.Random;
 /**
  * Spawns alligators into four rows that move at different speeds.
  *
- * Each row gets its own spawn interval, inversely proportional to its
- * speed, so every row ends up with roughly the same number of
- * alligators visible at once. A single shared interval (as the original
- * AWT version used) makes the slow rows pile up: a fast row clears
- * itself almost as quickly as new alligators arrive, but a slow one
- * doesn't, so it keeps accumulating.
+ * Each row gets its own spawn interval, inversely related to its speed
+ * by DENSITY_BIAS_EXPONENT below. A single shared interval (as the
+ * original AWT version used) makes the slow rows pile up badly: a fast
+ * row clears itself almost as quickly as new alligators arrive, but a
+ * slow one doesn't, so it keeps accumulating. Fully equalizing density
+ * (every row ends up with the same count) fixes that but reads as too
+ * uniform; the current exponent leaves slower rows moderately fuller
+ * than faster ones without the original pile-up.
  *
  * Kept as per-session instance state (rather than the static globals
  * the original AWT version used) so a restarted game starts clean.
@@ -28,10 +30,18 @@ public class AlligatorSpawner {
     // it were a single row's own interval, making every row spawn 4x more
     // often than before instead of just rebalancing the slow one).
     // The fastest row keeps that real, original 2s pacing; every other
-    // row's interval is scaled up by how much slower it is than the
-    // fastest one, so it accumulates alligators at the same rate.
+    // row's interval scales up from there (see DENSITY_BIAS_EXPONENT).
     private static final long FASTEST_ROW_INTERVAL_NS = GameStats.NANOSECONDS_PER_SECOND * 2;
     private static final int FASTEST_ROW_SPEED = 10;
+
+    /**
+     * How strongly a row's interval follows its speed ratio to the fastest
+     * row: 1.0 = fully proportional (equal density in every row); 0.0 =
+     * every row shares the fastest row's interval (the original bug, where
+     * slow rows pile up badly). A middle value gives slower rows a bit more
+     * density than a "fair" split would, without the pile-up.
+     */
+    private static final double DENSITY_BIAS_EXPONENT = 0.6;
 
     /** Each row's actual interval is jittered by up to this fraction of its base value, so spawns don't land in a perfectly mechanical rhythm. */
     private static final double JITTER_FRACTION = 0.2;
@@ -59,7 +69,8 @@ public class AlligatorSpawner {
         lastSpawnTime = new long[spawnRows.length];
         for (int i = 0; i < spawnRows.length; i++) {
             int speed = Math.abs(spawnRows[i][2]);
-            baseIntervalNs[i] = FASTEST_ROW_INTERVAL_NS * FASTEST_ROW_SPEED / speed;
+            double speedRatio = (double) FASTEST_ROW_SPEED / speed;
+            baseIntervalNs[i] = (long) (FASTEST_ROW_INTERVAL_NS * Math.pow(speedRatio, DENSITY_BIAS_EXPONENT));
             nextIntervalNs[i] = jittered(baseIntervalNs[i], random);
             // starts each row's clock at construction time, rather than
             // System.nanoTime()'s arbitrary large epoch, so rows don't all
